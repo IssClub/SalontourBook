@@ -6,6 +6,8 @@ const todayStr  = () => new Date().toISOString().slice(0, 10)
 const t2m       = t  => { const [h,m] = t.split(':').map(Number); return h*60+(m||0) }
 const m2t       = m  => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
 const isOnVac   = (vacs, pid, ds) => vacs.some(v => v.provider_id===pid && ds>=v.from_date && ds<=v.to_date)
+const isClosed  = (s, ds) => (s.closed_dates||[]).some(r => typeof r==='string' ? r===ds : ds>=r.from && ds<=r.to)
+const allOnVac  = (vacs, provs, ds) => provs.length > 0 && provs.every(p => isOnVac(vacs, p.id, ds))
 const dayHours  = (ds, s) => { const dow=new Date(ds+'T12:00:00').getDay(); const ov=s.day_hours?.[dow]; return ov?{open:ov.open,close:ov.close}:{open:s.open_mins,close:s.close_mins} }
 const slotTaken = (appts, ds, time, dur, pid) => {
   const s=t2m(time), e=s+dur
@@ -114,7 +116,7 @@ export default function App() {
               if (!c.ds) return <div key={i} className="cal-day other" />
               const isWork    = settings.work_days?.includes(c.dow)
               const isPast    = c.ds < td
-              const disabled  = !isWork || isPast
+              const disabled  = !isWork || isPast || isClosed(settings, c.ds) || allOnVac(vacations, providers, c.ds)
               const isToday   = c.ds === td
               return (
                 <div
